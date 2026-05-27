@@ -31,10 +31,11 @@ class Settings(BaseSettings):
     enable_database: bool = False
     database_url: str = ""
     database_max_rows: int = 200
+    database_query_timeout_seconds: int = 30
     database_allow_mutation: bool = False
+    database_allowed_databases: str = ""
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
-

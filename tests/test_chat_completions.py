@@ -283,7 +283,7 @@ def test_chat_completions_returns_tool_calls_and_finish_reason() -> None:
             return LLMResponse(
                 content="",
                 tool_calls=[ToolCall(id="call_1", name="fake_tool", arguments={"x": 1})],
-                raw_message={"role": "assistant", "content": ""},
+                raw_message={"role": "assistant", "content": "", "reasoning_content": "Need tool output first."},
             )
 
     service._client = ToolCallingClient()
@@ -313,6 +313,7 @@ def test_chat_completions_returns_tool_calls_and_finish_reason() -> None:
     assert body["choices"][0]["message"]["role"] == "assistant"
     assert body["choices"][0]["message"]["content"] == ""
     assert body["choices"][0]["message"]["tool_calls"][0]["function"]["name"] == "fake_tool"
+    assert body["choices"][0]["message"]["reasoning_content"] == "Need tool output first."
 
 
 def test_chat_completions_streams_tool_calls() -> None:

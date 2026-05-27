@@ -19,6 +19,7 @@ class ChatCompletionTurnResult:
     tool_calls: list[dict[str, Any]]
     finish_reason: str
     model: str
+    reasoning_content: str | None = None
 
 
 class AgentService:
@@ -75,6 +76,7 @@ class AgentService:
                         role="assistant",
                         content=turn.content,
                         tool_calls=turn.tool_calls or None,
+                        reasoning_content=turn.reasoning_content,
                     ),
                     finish_reason=turn.finish_reason,
                 )
@@ -186,12 +188,14 @@ class AgentService:
                 ],
                 finish_reason="tool_calls",
                 model=request.model or self._settings.model,
+                reasoning_content=llm_response.raw_message.get("reasoning_content"),
             )
         return ChatCompletionTurnResult(
             content=llm_response.content,
             tool_calls=[],
             finish_reason="stop",
             model=request.model or self._settings.model,
+            reasoning_content=llm_response.raw_message.get("reasoning_content"),
         )
 
     async def _run_loop(
@@ -233,6 +237,9 @@ class AgentService:
                         for call in llm_response.tool_calls
                     ],
                 }
+                reasoning_content = llm_response.raw_message.get("reasoning_content")
+                if reasoning_content is not None:
+                    assistant_message["reasoning_content"] = reasoning_content
                 messages.append(assistant_message)
 
                 for call in llm_response.tool_calls:
@@ -249,6 +256,7 @@ class AgentService:
                             payload={"name": call.name, "result": result},
                         )
                     )
+                    self._emit_tool_trace_events(call.name, result, emit)
                     messages.append(
                         {
                             "role": "tool",
@@ -328,6 +336,62 @@ class AgentService:
         if not stripped:
             return 0
         return len(stripped.split())
+
+    def _emit_tool_trace_events(
+        self,
+        tool_name: str,
+        result: dict[str, Any],
+        emit: Callable[[AgentEvent], None],
+    ) -> None:
+        if tool_name != "database_query":
+            return
+        trace = result.get("trace")
+        if not isinstance(trace, dict):
+            return
+
+        emit(
+            AgentEvent(
+                type="database_trace",
+                payload={
+                    "question": trace.get("question"),
+                    "database": trace.get("database"),
+                    "tables": trace.get("tables", []),
+                    "attempt_count": trace.get("attempt_count"),
+                    "final_sql": trace.get("final_sql"),
+                },
+            )
+        )
+        schema_context = trace.get("schema_context")
+        if schema_context:
+            emit(
+                AgentEvent(
+                    type="database_schema_context",
+                    payload={"schema_context": schema_context},
+                )
+            )
+        for attempt in trace.get("attempts", []):
+            emit(
+                AgentEvent(
+                    type="database_sql_attempt",
+                    payload={
+                        "attempt": attempt.get("attempt"),
+                        "sql": attempt.get("sql"),
+                        "retry_reason": attempt.get("retry_reason"),
+                        "error": attempt.get("error"),
+                    },
+                )
+            )
+        emit(
+            AgentEvent(
+                type="database_result_summary",
+                payload={
+                    "ok": result.get("ok"),
+                    "row_count": result.get("row_count"),
+                    "columns": result.get("columns", []),
+                    "generated_sql": result.get("generated_sql"),
+                },
+            )
+        )
 
     def _split_stream_content(self, content: str) -> list[str]:
         if not content:

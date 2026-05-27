@@ -20,7 +20,7 @@ This initial scaffold includes:
 - OpenAI-compatible chat-completions client
 - Agent loop that supports tool-calling until completion
 - Terminal tool with basic risk controls and command execution
-- Database tool for SQL databases and MongoDB
+- Database tool for ClickHouse
 - Environment-driven configuration
 
 ## Quick Start
@@ -43,6 +43,14 @@ cp .env.example .env
 
 ```bash
 uvicorn orionxcore.main:app --host 0.0.0.0 --port 8080
+```
+
+4. Use the CLI:
+
+```bash
+orionx ask "List the tables in the monitor database."
+orionx ask "Count the rows in metrics and summarize the result." --session-id demo
+orionx ask "Show me the raw agent response." --raw
 ```
 
 ## Configuration
@@ -85,6 +93,10 @@ curl -X POST http://localhost:8080/v1/agent/respond \
     ]
   }'
 ```
+
+For database tool calls, `/v1/agent/respond` now includes additional events such as
+`database_trace`, `database_schema_context`, `database_sql_attempt`, and
+`database_result_summary`.
 
 ### SSE streaming
 
@@ -153,11 +165,17 @@ Then call `/v1/chat/completions` again with the expanded `messages` array to con
 
 ## Database Notes
 
-The database tool supports:
+The database tool currently supports ClickHouse only.
 
-- SQLite through SQLAlchemy
-- MySQL and PostgreSQL through SQLAlchemy when the corresponding driver is installed
-- MongoDB when `pymongo` is installed and `ORIONXCORE_DATABASE_URL` uses a MongoDB URI
+- Use a ClickHouse SQLAlchemy URL such as `clickhousedb://username:password@localhost:8123/default`
+- Queries are read-only by default
+- Only single-statement read-only SQL is allowed
+- Result rows are capped by `ORIONXCORE_DATABASE_MAX_ROWS`
+- Query timeout is controlled by `ORIONXCORE_DATABASE_QUERY_TIMEOUT_SECONDS`
+- Schema introspection supports `list_tables` and `describe_table`
+- Natural-language querying now supports a minimal `text_to_sql` flow with one automatic retry on SQL errors
+- `ORIONXCORE_DATABASE_ALLOWED_DATABASES` can restrict schema discovery and Text-to-SQL context to an approved database whitelist
+- `text_to_sql` responses include trace metadata such as schema context, generated SQL, retry reason, and final SQL
 
 By default, mutation statements are blocked. Enable `ORIONXCORE_DATABASE_ALLOW_MUTATION=true` only when that is explicitly desired.
 
