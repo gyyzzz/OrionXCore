@@ -2,6 +2,8 @@
 
 OrionXCore is a lightweight, configurable AI coding agent service. You provide a model, API key, and API base URL, then expose a standard HTTP interface that IDE plugins, scripts, or Web UIs can call.
 
+Chinese documentation: [README_zh.md](README_zh.md)
+
 ## Goals
 
 - Terminal execution via tool calling
@@ -114,4 +116,3 @@ By default, mutation statements are blocked. Enable `ORIONXCORE_DATABASE_ALLOW_M
 - Richer file-system tools
 - Structured tool plugin loading from external packages
 - Auth, rate limiting, and audit logs
-

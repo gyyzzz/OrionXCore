@@ -7,4 +7,4 @@ __pycache__/
 dist/
 build/
 *.pyc
-
+src/*.egg-info/
