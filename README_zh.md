@@ -181,6 +181,60 @@ curl -N -X POST http://localhost:8080/v1/agent/stream \
   }'
 ```
 
+### 5. OpenAI 兼容的 chat completions 接口
+
+普通请求示例：
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [
+      {"role": "user", "content": "总结一下这个项目。"}
+    ]
+  }'
+```
+
+带 Tool 的请求示例：
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [
+      {"role": "user", "content": "检查当前工作区。"}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "run_terminal_command",
+          "description": "在配置好的工作目录中执行 Shell 命令。",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {"type": "string"}
+            },
+            "required": ["command"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false
+  }'
+```
+
+如果响应中返回 `finish_reason: "tool_calls"`，则说明这一轮需要由客户端执行工具。客户端应当：
+
+- 保留 assistant 返回的 `tool_calls`
+- 执行对应工具
+- 追加一条 `role: "tool"` 的消息，并带上 `tool_call_id`、`name` 和工具执行结果
+
+然后再次调用 `/v1/chat/completions`，把完整的 `messages` 继续传回服务，以完成下一轮生成。
+
 ## 数据库支持说明
 
 当前数据库 Tool 支持以下模式：

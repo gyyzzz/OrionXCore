@@ -29,13 +29,30 @@ class OpenAICompatibleClient:
         self,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+        model: str | None = None,
+        temperature: float | None = None,
+        top_p: float | None = None,
+        max_tokens: int | None = None,
+        stop: str | list[str] | None = None,
     ) -> LLMResponse:
         payload = {
-            "model": self._settings.model,
+            "model": model or self._settings.model,
             "messages": messages,
             "tools": tools,
-            "tool_choice": "auto" if tools else "none",
+            "tool_choice": tool_choice if tool_choice is not None else ("auto" if tools else "none"),
         }
+        if parallel_tool_calls is not None:
+            payload["parallel_tool_calls"] = parallel_tool_calls
+        if temperature is not None:
+            payload["temperature"] = temperature
+        if top_p is not None:
+            payload["top_p"] = top_p
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if stop is not None:
+            payload["stop"] = stop
         headers = {
             "Authorization": f"Bearer {self._settings.api_key}",
             "Content-Type": "application/json",
@@ -84,4 +101,3 @@ class OpenAICompatibleClient:
                     parts.append(item.get("text", ""))
             return "\n".join(part for part in parts if part)
         return str(content)
-

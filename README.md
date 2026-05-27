@@ -98,6 +98,59 @@ curl -N -X POST http://localhost:8080/v1/agent/stream \
   }'
 ```
 
+### OpenAI-compatible chat completions
+
+Non-streaming request:
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [
+      {"role": "user", "content": "Summarize this project."}
+    ]
+  }'
+```
+
+Tool-calling request:
+
+```bash
+curl -X POST http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [
+      {"role": "user", "content": "Inspect the workspace."}
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "run_terminal_command",
+          "description": "Execute a shell command in the configured workspace.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {"type": "string"}
+            },
+            "required": ["command"]
+          }
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "parallel_tool_calls": false
+  }'
+```
+
+If the response returns `finish_reason: "tool_calls"`, execute the requested tool client-side, append:
+
+- the assistant message containing `tool_calls`
+- a `tool` role message with `tool_call_id`, `name`, and serialized tool result
+
+Then call `/v1/chat/completions` again with the expanded `messages` array to continue the interaction.
+
 ## Database Notes
 
 The database tool supports:

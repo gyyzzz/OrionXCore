@@ -34,6 +34,18 @@ class ToolRegistry:
             for tool in self._tools.values()
         ]
 
+    def filtered(self, requested_tools: list[dict[str, Any]] | None) -> "ToolRegistry":
+        if requested_tools is None:
+            return ToolRegistry(list(self._tools.values()))
+
+        requested_names = {
+            item.get("function", {}).get("name")
+            for item in requested_tools
+            if item.get("type") == "function"
+        }
+        tools = [tool for name, tool in self._tools.items() if name in requested_names]
+        return ToolRegistry(tools)
+
     async def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         tool = self._tools.get(name)
         if tool is None:
@@ -48,4 +60,3 @@ def build_registry(settings: Settings) -> ToolRegistry:
     if settings.enable_database:
         tools.append(DatabaseTool(settings))
     return ToolRegistry(tools)
-

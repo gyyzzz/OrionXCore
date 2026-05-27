@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from orionxcore.config import Settings, get_settings
-from orionxcore.schemas import AgentRequest, AgentResponse
+from orionxcore.schemas import AgentRequest, AgentResponse, ChatCompletionRequest
+from orionxcore.schemas import ChatCompletionResponse
 from orionxcore.schemas import ToolDescriptor
 from orionxcore.services.agent import AgentService
 from orionxcore.tools.registry import build_registry
@@ -34,12 +35,27 @@ async def list_tools(settings: Settings = Depends(get_settings)) -> list[ToolDes
 
 
 @router.post("/v1/agent/respond", response_model=AgentResponse)
-@router.post("/v1/chat/completions", response_model=AgentResponse)
 async def respond(
     request: AgentRequest,
     agent_service: AgentService = Depends(get_agent_service),
 ) -> AgentResponse:
     return await agent_service.run(request)
+
+
+@router.post("/v1/chat/completions", response_model=ChatCompletionResponse)
+async def chat_completions(
+    request: ChatCompletionRequest,
+    agent_service: AgentService = Depends(get_agent_service),
+) -> ChatCompletionResponse | StreamingResponse:
+    if request.stream:
+        async def event_stream() -> AsyncIterator[str]:
+            async for chunk in agent_service.stream_chat_completion(request):
+                yield f"data: {chunk.model_dump_json()}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    return await agent_service.run_chat_completion(request)
 
 
 @router.post("/v1/agent/stream")
@@ -63,4 +79,3 @@ async def root() -> JSONResponse:
             "docs_hint": "Use /health, /v1/tools, /v1/agent/respond, or /v1/agent/stream.",
         }
     )
-

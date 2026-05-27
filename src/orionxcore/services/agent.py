@@ -1,10 +1,24 @@
 import json
+import time
+import uuid
+from dataclasses import dataclass
 from typing import Any, AsyncIterator, Callable
 
 from orionxcore.config import Settings
 from orionxcore.llm.openai_compat import OpenAICompatibleClient
-from orionxcore.schemas import AgentEvent, AgentRequest, AgentResponse, ChatMessage
+from orionxcore.schemas import AgentEvent, AgentRequest, AgentResponse
+from orionxcore.schemas import ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta
+from orionxcore.schemas import ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse
+from orionxcore.schemas import ChatCompletionChoice, ChatCompletionUsage, ChatMessage
 from orionxcore.tools.registry import ToolRegistry
+
+
+@dataclass
+class ChatCompletionTurnResult:
+    content: str
+    tool_calls: list[dict[str, Any]]
+    finish_reason: str
+    model: str
 
 
 class AgentService:
@@ -41,17 +55,167 @@ class AgentService:
             },
         )
 
+    async def run_chat_completion(
+        self,
+        request: ChatCompletionRequest,
+    ) -> ChatCompletionResponse:
+        turn = await self._run_chat_completion_turn(request)
+        created = int(time.time())
+        completion_id = f"chatcmpl-{uuid.uuid4().hex}"
+        usage = self._estimate_usage(request.messages, turn.content)
+        return ChatCompletionResponse(
+            id=completion_id,
+            object="chat.completion",
+            created=created,
+            model=turn.model,
+            choices=[
+                ChatCompletionChoice(
+                    index=0,
+                    message=ChatCompletionMessage(
+                        role="assistant",
+                        content=turn.content,
+                        tool_calls=turn.tool_calls or None,
+                    ),
+                    finish_reason=turn.finish_reason,
+                )
+            ],
+            usage=usage,
+        )
+
+    async def stream_chat_completion(
+        self,
+        request: ChatCompletionRequest,
+    ) -> AsyncIterator[ChatCompletionChunk]:
+        response = await self.run_chat_completion(request)
+        content_parts = self._split_stream_content(response.choices[0].message.content or "")
+        yield ChatCompletionChunk(
+            id=response.id,
+            object="chat.completion.chunk",
+            created=response.created,
+            model=response.model,
+            choices=[
+                ChatCompletionChunkChoice(
+                    index=0,
+                    delta=ChatCompletionDelta(role="assistant"),
+                    finish_reason=None,
+                )
+            ],
+        )
+        tool_calls = response.choices[0].message.tool_calls or []
+        if tool_calls:
+            for delta_tool_call in self._stream_tool_call_deltas(tool_calls):
+                yield ChatCompletionChunk(
+                    id=response.id,
+                    object="chat.completion.chunk",
+                    created=response.created,
+                    model=response.model,
+                    choices=[
+                        ChatCompletionChunkChoice(
+                            index=0,
+                            delta=ChatCompletionDelta(tool_calls=[delta_tool_call]),
+                            finish_reason=None,
+                        )
+                    ],
+                )
+        for part in content_parts:
+            yield ChatCompletionChunk(
+                id=response.id,
+                object="chat.completion.chunk",
+                created=response.created,
+                model=response.model,
+                choices=[
+                    ChatCompletionChunkChoice(
+                        index=0,
+                        delta=ChatCompletionDelta(content=part),
+                        finish_reason=None,
+                    )
+                ],
+            )
+        yield ChatCompletionChunk(
+            id=response.id,
+            object="chat.completion.chunk",
+            created=response.created,
+            model=response.model,
+            choices=[
+                ChatCompletionChunkChoice(
+                    index=0,
+                    delta=ChatCompletionDelta(),
+                    finish_reason=response.choices[0].finish_reason,
+                )
+            ],
+        )
+
+    async def _run_chat_completion_turn(
+        self,
+        request: ChatCompletionRequest,
+    ) -> ChatCompletionTurnResult:
+        messages = self._build_messages(
+            AgentRequest(messages=request.messages, metadata=request.metadata),
+            include_system_prompt=False,
+        )
+        registry = self._registry.filtered(request.tools)
+        tools = registry.as_openai_tools()
+        llm_response = await self._client.complete(
+            messages=messages,
+            tools=tools,
+            tool_choice=request.tool_choice,
+            parallel_tool_calls=request.parallel_tool_calls,
+            model=request.model,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            max_tokens=request.max_tokens,
+            stop=request.stop,
+        )
+        allowed_tool_names = {tool["function"]["name"] for tool in tools}
+        valid_tool_calls = [
+            call for call in llm_response.tool_calls if call.name in allowed_tool_names
+        ]
+        if valid_tool_calls:
+            return ChatCompletionTurnResult(
+                content=llm_response.content,
+                tool_calls=[
+                    {
+                        "id": call.id,
+                        "type": "function",
+                        "function": {
+                            "name": call.name,
+                            "arguments": json.dumps(call.arguments, ensure_ascii=True),
+                        },
+                    }
+                    for call in valid_tool_calls
+                ],
+                finish_reason="tool_calls",
+                model=request.model or self._settings.model,
+            )
+        return ChatCompletionTurnResult(
+            content=llm_response.content,
+            tool_calls=[],
+            finish_reason="stop",
+            model=request.model or self._settings.model,
+        )
+
     async def _run_loop(
         self,
         request: AgentRequest,
         emit: Callable[[AgentEvent], None],
+        requested_tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
+        parallel_tool_calls: bool | None = None,
+        model: str | None = None,
     ) -> tuple[ChatMessage, int]:
         messages = self._build_messages(request)
-        tools = self._registry.as_openai_tools()
+        registry = self._registry.filtered(requested_tools)
+        tools = registry.as_openai_tools()
 
         for iteration in range(1, self._settings.max_iterations + 1):
             emit(AgentEvent(type="iteration", payload={"iteration": iteration}))
-            llm_response = await self._client.complete(messages=messages, tools=tools)
+            llm_response = await self._client.complete(
+                messages=messages,
+                tools=tools,
+                tool_choice=tool_choice,
+                parallel_tool_calls=parallel_tool_calls,
+                model=model,
+            )
 
             if llm_response.tool_calls:
                 assistant_message = {
@@ -78,7 +242,7 @@ class AgentService:
                             payload={"name": call.name, "arguments": call.arguments},
                         )
                     )
-                    result = await self._registry.execute(call.name, call.arguments)
+                    result = await registry.execute(call.name, call.arguments)
                     emit(
                         AgentEvent(
                             type="tool_result",
@@ -108,12 +272,106 @@ class AgentService:
         return final_message, self._settings.max_iterations
 
     def _build_messages(self, request: AgentRequest) -> list[dict[str, Any]]:
-        messages: list[dict[str, Any]] = [
-            {
-                "role": "system",
-                "content": self._settings.system_prompt
-                + "\nUse tools when they help. Explain risky actions before requesting them.",
-            }
-        ]
+        return self._build_messages_with_options(request, include_system_prompt=True)
+
+    def _build_messages_with_options(
+        self,
+        request: AgentRequest,
+        include_system_prompt: bool,
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
+        if include_system_prompt:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": self._settings.system_prompt
+                    + "\nUse tools when they help. Explain risky actions before requesting them.",
+                }
+            )
         messages.extend(message.model_dump(exclude_none=True) for message in request.messages)
         return messages
+
+    def _build_messages(
+        self,
+        request: AgentRequest,
+        include_system_prompt: bool = True,
+    ) -> list[dict[str, Any]]:
+        messages: list[dict[str, Any]] = []
+        if include_system_prompt:
+            messages.append(
+                {
+                    "role": "system",
+                    "content": self._settings.system_prompt
+                    + "\nUse tools when they help. Explain risky actions before requesting them.",
+                }
+            )
+        messages.extend(message.model_dump(exclude_none=True) for message in request.messages)
+        return messages
+
+    def _estimate_usage(
+        self,
+        request_messages: list[ChatMessage],
+        completion_content: Any,
+    ) -> ChatCompletionUsage:
+        prompt_text = " ".join(str(message.content) for message in request_messages)
+        completion_text = str(completion_content or "")
+        prompt_tokens = self._estimate_tokens(prompt_text)
+        completion_tokens = self._estimate_tokens(completion_text)
+        return ChatCompletionUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+        )
+
+    def _estimate_tokens(self, text: str) -> int:
+        stripped = text.strip()
+        if not stripped:
+            return 0
+        return len(stripped.split())
+
+    def _split_stream_content(self, content: str) -> list[str]:
+        if not content:
+            return []
+        words = content.split(" ")
+        if len(words) <= 1:
+            return [content]
+        parts: list[str] = []
+        for index, word in enumerate(words):
+            if index < len(words) - 1:
+                parts.append(f"{word} ")
+            else:
+                parts.append(word)
+        return parts
+
+    def _stream_tool_call_deltas(self, tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        deltas: list[dict[str, Any]] = []
+        for index, tool_call in enumerate(tool_calls):
+            function = tool_call.get("function", {})
+            arguments = function.get("arguments", "")
+            deltas.append(
+                {
+                    "index": index,
+                    "id": tool_call.get("id"),
+                    "type": tool_call.get("type", "function"),
+                    "function": {
+                        "name": function.get("name"),
+                        "arguments": "",
+                    },
+                }
+            )
+            for part in self._split_argument_stream(arguments):
+                deltas.append(
+                    {
+                        "index": index,
+                        "function": {
+                            "arguments": part,
+                        },
+                    }
+                )
+        return deltas
+
+    def _split_argument_stream(self, arguments: str) -> list[str]:
+        if not arguments:
+            return []
+        chunk_size = 12
+        return [arguments[i : i + chunk_size] for i in range(0, len(arguments), chunk_size)]
