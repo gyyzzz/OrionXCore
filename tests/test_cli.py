@@ -1,4 +1,5 @@
 import io
+import builtins
 from contextlib import redirect_stdout
 
 from orionxcore import cli
@@ -59,3 +60,33 @@ def test_cli_ask_formats_database_events(monkeypatch) -> None:
     assert "There are 42 users." in output
     assert "database_trace" in output
     assert "database_result_summary" in output
+
+
+def test_cli_chat_uses_session_and_exits(monkeypatch) -> None:
+    calls = []
+
+    def fake_post_json(base_url, path, payload, timeout):
+        calls.append(payload)
+        return {
+            "message": {"content": "There is one table: metrics."},
+            "events": [],
+            "iterations": 1,
+            "session_id": payload["session_id"],
+        }
+
+    inputs = iter(["列出 monitor 库里的表", "quit"])
+
+    monkeypatch.setattr(cli, "post_json", fake_post_json)
+    monkeypatch.setattr(builtins, "input", lambda _prompt="": next(inputs))
+    monkeypatch.setattr(cli, "uuid4", lambda: type("U", (), {"hex": "abc12345deadbeef"})())
+
+    stdout = io.StringIO()
+    with redirect_stdout(stdout):
+        exit_code = cli.main(["chat"])
+
+    output = stdout.getvalue()
+    assert exit_code == 0
+    assert "OrionX chat session: chat-abc12345" in output
+    assert "assistant>" in output
+    assert calls[0]["session_id"] == "chat-abc12345"
+    assert calls[0]["messages"][0]["content"] == "列出 monitor 库里的表"

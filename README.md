@@ -51,6 +51,7 @@ uvicorn orionxcore.main:app --host 0.0.0.0 --port 8080
 orionx ask "List the tables in the monitor database."
 orionx ask "Count the rows in metrics and summarize the result." --session-id demo
 orionx ask "Show me the raw agent response." --raw
+orionx chat
 ```
 
 ## Configuration

@@ -2,6 +2,7 @@ import argparse
 import json
 import sys
 from typing import Any
+from uuid import uuid4
 
 import httpx
 
@@ -36,6 +37,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Alias for --raw.",
     )
 
+    chat_parser = subparsers.add_parser("chat", help="Start an interactive chat session.")
+    chat_parser.add_argument("--session-id", help="Optional session ID. Generated automatically if omitted.")
+    chat_parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Print raw JSON responses for each turn.",
+    )
+
     return parser
 
 
@@ -45,6 +54,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "ask":
         return run_ask(args)
+    if args.command == "chat":
+        return run_chat(args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2
@@ -77,6 +88,43 @@ def run_ask(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_chat(args: argparse.Namespace) -> int:
+    session_id = args.session_id or f"chat-{uuid4().hex[:8]}"
+    print(f"OrionX chat session: {session_id}")
+    print("Type 'exit' or 'quit' to stop.")
+    print("")
+
+    while True:
+        try:
+            prompt = input("you> ").strip()
+        except EOFError:
+            print("")
+            return 0
+        except KeyboardInterrupt:
+            print("")
+            return 0
+
+        if not prompt:
+            continue
+        if prompt.lower() in {"exit", "quit"}:
+            return 0
+
+        response = post_json(
+            base_url=args.base_url,
+            path="/v1/agent/respond",
+            payload={
+                "messages": [{"role": "user", "content": prompt}],
+                "session_id": session_id,
+            },
+            timeout=args.timeout,
+        )
+
+        if args.raw:
+            print(json.dumps(response, ensure_ascii=False, indent=2))
+        else:
+            render_agent_response(response, assistant_label="assistant>")
+
+
 def post_json(base_url: str, path: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
     url = base_url.rstrip("/") + path
     try:
@@ -92,8 +140,8 @@ def post_json(base_url: str, path: str, payload: dict[str, Any], timeout: float)
         raise SystemExit(1) from exc
 
 
-def render_agent_response(response: dict[str, Any]) -> None:
-    print("Assistant")
+def render_agent_response(response: dict[str, Any], assistant_label: str = "Assistant") -> None:
+    print(assistant_label)
     print(response.get("message", {}).get("content", ""))
     print("")
 

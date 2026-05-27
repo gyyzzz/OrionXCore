@@ -115,6 +115,7 @@ uvicorn orionxcore.main:app --host 0.0.0.0 --port 8080
 orionx ask "列出 monitor 库里的表"
 orionx ask "统计 metrics 表总行数并做简要说明" --session-id demo
 orionx ask "显示原始 agent 响应" --raw
+orionx chat
 ```
 
 ## 配置说明

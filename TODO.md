@@ -1,165 +1,121 @@
 # OrionXCore TODO
 
-当前阶段目标：把项目从 Alpha 骨架推进到“数据库优先的可用 PoC”。
+当前阶段目标：把项目从 Alpha 骨架推进到“数据库优先、具备基础交互能力的可用 PoC”。
 
-优先策略调整如下：
+## 当前状态
 
-- 第一优先级：数据库能力
-- 第二优先级：Agent 与会话链路
-- 第三优先级：Terminal 安全与执行
-- 第四优先级：文件系统 Tool
-- 第五优先级：接入体验、日志与可观测性
+已完成：
 
-当前数据库范围只聚焦：
+- [x] 服务骨架：FastAPI、REST、SSE、配置加载
+- [x] OpenAI 兼容 `chat/completions` 基础能力
+- [x] DeepSeek `reasoning_content` continuation 兼容
+- [x] ClickHouse-only 数据库能力收敛
+- [x] 数据库 schema introspection：`list_tables`、`describe_table`
+- [x] 最小版 Text-to-SQL
+- [x] SQL 自动修正重试一次
+- [x] 数据库 trace 返回
+- [x] Agent 数据库事件流
+- [x] 数据库白名单
+- [x] 只读 SQL / 单语句限制 / 查询超时
+- [x] 最小 CLI：`orionx ask`
 
-- ClickHouse
-- PostgreSQL
-- MySQL
+进行中：
 
-暂不考虑：
+- [ ] CLI 交互式会话：`orionx chat`
 
-- SQLite
-- MongoDB
-- 其他数据库类型
+## 优先级
 
-## 阶段 1：数据库能力优先
+1. 数据库能力继续增强
+2. CLI / 交互体验
+3. Agent 会话能力
+4. Terminal 安全与执行
+5. 文件系统 Tool
+6. 可观测性与接入体验
 
-目标：把数据库查询能力做成 OrionXCore 的第一个强项，能够稳定连接、识别 schema、生成查询、返回结构化结果。
+## 阶段 1：数据库能力
 
-### 1.1 连接层整理
+### 1.1 ClickHouse 基础
 
-- 收敛数据库支持范围到 ClickHouse、PostgreSQL、MySQL
-- 调整配置项，明确数据库方言和连接参数约束
-- 为 ClickHouse 增加连接支持
-- 为 PostgreSQL、MySQL 补齐驱动依赖与连接验证
-- 启动时增加数据库配置合法性校验
+- [x] 只保留 ClickHouse
+- [x] 补 ClickHouse 连接配置
+- [x] 工具层报告数据库方言
+- [x] 配置库白名单
 
-验收标准：
+### 1.2 Schema 探测
 
-- 能根据配置正确识别三种数据库之一
-- 连接失败时返回清晰错误信息
-- 工具层能报告当前连接数据库类型
+- [x] `list_tables`
+- [x] `describe_table`
+- [x] schema context 构建
+- [x] 白名单约束 schema 探测
 
-### 1.2 Schema 探测能力
+### 1.3 Text-to-SQL
 
-- 增加 schema introspection 能力
-- 支持列出数据库、schema、table、column 基本信息
-- 为不同数据库做最小兼容适配
-- 给模型提供统一的 schema 摘要上下文
+- [x] 自然语言问题转 SQL
+- [x] 只读 SQL 生成约束
+- [x] SQL 执行失败自动修正重试
+- [x] 返回 `generated_sql`
+- [x] 返回 `trace`
 
-验收标准：
+### 1.4 数据库安全
 
-- 能列出可查询表
-- 能返回字段名、字段类型、主键信息的基础摘要
-- 模型可基于 schema 摘要生成更可信的 SQL
+- [x] 只允许只读语句
+- [x] 禁止多语句执行
+- [x] 行数限制
+- [x] 查询超时
+- [ ] 更细的高风险查询确认机制
 
-### 1.3 Text-to-SQL 主链路
+### 1.5 数据库下一步
 
-- 为数据库查询 Tool 增加“自然语言问题 + schema 上下文 -> SQL”工作流
-- 增加只读 SQL 约束
-- 增加 SQL 执行前校验
-- 增加 SQL 执行失败后的一次自动修正重试
-- 返回生成 SQL、执行结果、结果摘要
+- [ ] 给查询结果增加自然语言摘要/解释
+- [ ] 增加表白名单配置
+- [ ] 更稳的 SQL 结果截断和大结果说明
 
-验收标准：
+## 阶段 2：Agent 与会话
 
-- 用户给自然语言问题时，可以生成 SQL 并执行
-- SQL 失败时能给出修正后的第二次尝试
-- 客户端可以看到最终 SQL 与结果
+- [x] Agent 可调用数据库工具
+- [x] Agent 返回数据库细粒度事件
+- [x] 工具执行 trace 可观察
+- [ ] 服务侧真正持久化 `session_id`
+- [ ] 多轮数据库追问稳定延续
+- [ ] 数据库结果解释进一步融入 Agent
 
-### 1.4 数据库安全控制
+## 阶段 3：CLI / 交互体验
 
-- 默认只允许 SELECT / SHOW / DESCRIBE / EXPLAIN 等只读语句
-- 明确拦截 INSERT / UPDATE / DELETE / DROP / ALTER 等写操作
-- 增加最大返回行数限制
-- 增加查询超时和结果截断
-- 为高风险查询增加显式确认机制预留字段
+- [x] `orionx ask`
+- [x] `--raw`
+- [x] 基础事件格式化
+- [ ] `orionx chat`
+- [ ] 更细的输出控制：`--quiet`、`--show-events`
+- [ ] 数据库事件更好的表格化展示
 
-验收标准：
+## 阶段 4：Terminal 能力
 
-- 写操作默认被阻止
-- 大结果集会被限制和截断
-- 危险语句会返回结构化错误而不是直接执行
+- [ ] 更细的风险分级
+- [ ] 更清晰的确认机制
+- [ ] 输出截断与审计增强
 
-## 阶段 2：Agent 与会话能力
+## 阶段 5：文件系统 Tool
 
-目标：让数据库能力真正融入 Agent 主链路，而不是孤立工具。
-
-- 为 `/v1/agent/respond` 增加数据库任务执行事件
-- 增加最小会话能力，支持 `session_id`
-- 支持连续多轮数据库问答
-- 支持“先看 schema，再生成 SQL，再解释结果”的链路
-- 增加失败重试与错误摘要
-
-验收标准：
-
-- 同一会话中可以连续追问数据库问题
-- Agent 能自动先探测 schema 再查询
-- 查询结果可以被继续解释和汇总
-
-## 阶段 3：Terminal 能力与安全控制
-
-目标：保留终端能力，但优先服务数据库和后续调试场景。
-
-- 增加命令风险分级
-- 增加 `requires_confirmation` 返回结构
-- 限制工作目录范围
-- 增加输出截断和超时控制
-- 增加执行审计字段
-
-验收标准：
-
-- 常见只读命令可以稳定执行
-- 危险命令会被阻止或要求确认
-- 客户端能清楚识别命令执行状态
-
-## 阶段 4：文件系统 Tool
-
-目标：在数据库链路稳定后，再补编程代理的文件操作能力。
-
-- 增加 `list_directory`
-- 增加 `read_file`
-- 增加 `search_text`
-- 增加 `write_file`
-- 增加受控补丁式修改
-
-验收标准：
-
-- 能完成基础代码浏览和修改
-- 所有文件访问都受工作区边界约束
-
-## 阶段 5：接入体验与可观测性
-
-目标：让外部客户端更容易接入和排障。
-
-- 统一错误码和错误响应结构
-- 增加请求日志、工具调用日志、数据库查询日志
-- 补更完整的 README 示例
-- 增加最小 Demo Client
-- 继续补充 OpenAI 兼容字段
-- 视情况加入简单鉴权
-
-验收标准：
-
-- 外部客户端能稳定接入 REST / SSE
-- 出错时可以快速判断问题来源
-- 文档足够支持新调用方快速联调
+- [ ] `list_directory`
+- [ ] `read_file`
+- [ ] `search_text`
+- [ ] `write_file`
+- [ ] 受控补丁式修改
 
 ## 当前推荐执行顺序
 
-1. 重构数据库 Tool，只保留 ClickHouse / PostgreSQL / MySQL
-2. 增加 schema introspection
-3. 落地 Text-to-SQL + 只读执行 + 自动修正重试
-4. 把数据库链路接入 Agent 和 session
-5. 再继续补 Terminal、文件系统和可观测性
+1. 完成 `orionx chat`
+2. 给数据库结果增加自然语言摘要/解释
+3. 补服务侧 `session_id` 持久化
+4. 再继续补 Terminal、文件系统和可观测性
 
-## PoC 验收目标
+## 当前 PoC 验收情况
 
-达到下面这个水平，就可以认为数据库优先版 PoC 成立：
-
-- 客户端发自然语言问题
-- 服务自动识别 schema 并生成 SQL
-- 服务在 ClickHouse / PostgreSQL / MySQL 上执行只读查询
-- 返回 SQL、结构化结果、结果摘要
-- 如果 SQL 首次失败，服务会自动进行一次修正重试
-- 同一会话里可以继续追问上一轮查询结果
+- [x] 能连接 ClickHouse
+- [x] 能列出表
+- [x] 能查看字段
+- [x] 能做最小版 Text-to-SQL
+- [x] 能自动修正一次 SQL
+- [x] 能返回结构化结果与 trace
+- [x] 能通过 Agent 事件流观察数据库执行过程
+- [ ] 能在稳定的多轮 session 中持续追问
