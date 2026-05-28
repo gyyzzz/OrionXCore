@@ -1,5 +1,14 @@
 # OrionXCore
 
+```
+ ██████╗ ██████╗ ██╗ ██████╗ ███╗   ██╗██╗  ██╗
+██╔═══██╗██╔══██╗██║██╔═══██╗████╗  ██║╚██╗██╔╝
+██║   ██║██████╔╝██║██║   ██║██╔██╗ ██║ ╚███╔╝
+██║   ██║██╔══██╗██║██║   ██║██║╚██╗██║ ██╔██╗
+╚██████╔╝██║  ██║██║╚██████╔╝██║ ╚████║██╔╝ ██╗
+ ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝
+```
+
 OrionXCore is a lightweight, configurable AI coding agent service. You provide a model, API key, and API base URL, then expose a standard HTTP interface that IDE plugins, scripts, or Web UIs can call.
 
 Chinese documentation: [README_zh.md](README_zh.md)
