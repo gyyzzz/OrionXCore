@@ -86,7 +86,8 @@ def test_cli_chat_uses_session_and_exits(monkeypatch) -> None:
 
     output = stdout.getvalue()
     assert exit_code == 0
-    assert "OrionXCore CLI" in output  # Logo appears
+    assert "██████" in output  # Logo appears
+    assert "OrionXCore CLI" in output
     assert "Session: chat-abc12345" in output
     assert "assistant>" in output
     assert calls[0]["session_id"] == "chat-abc12345"
