@@ -2,8 +2,9 @@ import json
 from typing import AsyncIterator
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
+from orionxcore.api.playground import render_playground
 from orionxcore.config import Settings, get_settings
 from orionxcore.schemas import AgentRequest, AgentResponse, ChatCompletionRequest
 from orionxcore.schemas import ChatCompletionResponse
@@ -76,6 +77,11 @@ async def root() -> JSONResponse:
     return JSONResponse(
         {
             "service": "OrionXCore",
-            "docs_hint": "Use /health, /v1/tools, /v1/agent/respond, or /v1/agent/stream.",
+            "docs_hint": "Use /health, /v1/tools, /v1/agent/respond, /v1/agent/stream, or /playground.",
         }
     )
+
+
+@router.get("/playground", response_class=HTMLResponse)
+async def playground() -> HTMLResponse:
+    return render_playground()

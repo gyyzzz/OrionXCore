@@ -54,6 +54,12 @@ orionx ask "Show me the raw agent response." --raw
 orionx chat
 ```
 
+5. Open the browser playground:
+
+```text
+http://127.0.0.1:8080/playground
+```
+
 ## Configuration
 
 Core settings:
@@ -163,6 +169,11 @@ If the response returns `finish_reason: "tool_calls"`, execute the requested too
 - a `tool` role message with `tool_call_id`, `name`, and serialized tool result
 
 Then call `/v1/chat/completions` again with the expanded `messages` array to continue the interaction.
+
+### Browser playground
+
+Open `/playground` in the browser to test `/v1/agent/respond` and `/v1/chat/completions`
+with editable JSON payloads and raw response inspection.
 
 ## Database Notes
 

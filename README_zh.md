@@ -118,6 +118,12 @@ orionx ask "显示原始 agent 响应" --raw
 orionx chat
 ```
 
+### 5. 打开浏览器调试页
+
+```text
+http://127.0.0.1:8080/playground
+```
+
 ## 配置说明
 
 ### 基础配置
@@ -239,6 +245,11 @@ curl -X POST http://localhost:8080/v1/chat/completions \
     "parallel_tool_calls": false
   }'
 ```
+
+### 6. 浏览器 Playground
+
+访问 `/playground` 可以直接在浏览器里调试 `/v1/agent/respond` 和
+`/v1/chat/completions`，支持切换接口、编辑 JSON 请求体、查看原始响应。
 
 如果响应中返回 `finish_reason: "tool_calls"`，则说明这一轮需要由客户端执行工具。客户端应当：
 
