@@ -4,6 +4,43 @@ OrionXCore is a lightweight, configurable AI coding agent service. You provide a
 
 Chinese documentation: [README_zh.md](README_zh.md)
 
+**Documentation**: [Architecture](docs/ARCHITECTURE.md) | [Deployment](docs/DEPLOYMENT.md)
+
+---
+
+## Why OrionXCore?
+
+OrionXCore differs from tools like **OpenAI Codex**, **Claude Code**, and **GitHub Copilot** in several key ways:
+
+| Feature | OrionXCore | Claude Code / Codex | Copilot |
+|---------|------------|---------------------|---------|
+| **Deployment** | Self-hosted service | CLI/Desktop app | IDE extension |
+| **Model Flexibility** | Any OpenAI-compatible API | Locked to provider | Locked to provider |
+| **Integration** | HTTP API for any client | Direct usage only | IDE only |
+| **Database Tools** | Built-in ClickHouse + Text-to-SQL | Limited/None | None |
+| **File System** | Configurable sandbox | Full access | IDE workspace |
+| **Customization** | Fully open source | Closed | Closed |
+| **Multi-turn Agent** | Server-side loop | Client-side | Single request |
+
+### Key Advantages
+
+1. **API-First Design**: Exposes standard REST/SSE endpoints that any client can call - IDE plugins, web UIs, scripts, or mobile apps.
+
+2. **Model Agnostic**: Works with any OpenAI-compatible API (OpenAI, Azure, DeepSeek, local models via Ollama/vLLM, etc.). You control the model, not the vendor.
+
+3. **Database-Native**: Built-in ClickHouse integration with Text-to-SQL workflow, schema introspection, and automatic SQL retry on errors.
+
+4. **Sandboxed Execution**: Terminal and filesystem tools with configurable security boundaries - path limits, size limits, permission controls.
+
+5. **Open Source**: Fully customizable. Add new tools, modify behavior, integrate with your existing systems.
+
+### When to Use OrionXCore
+
+- **You need a service, not a CLI**: Want to integrate AI coding into your web app, IDE plugin, or automation pipeline.
+- **You have your own LLM**: Using self-hosted models or alternative providers.
+- **You need database querying**: Natural language queries against ClickHouse or similar data warehouses.
+- **You want control**: Customize security policies, tools, and behavior for your environment.
+
 ## Goals
 
 - Terminal execution via tool calling
@@ -24,6 +61,8 @@ This initial scaffold includes:
 - Environment-driven configuration
 
 ## Quick Start
+
+For detailed deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 1. Create a virtual environment and install dependencies:
 
@@ -205,6 +244,8 @@ The filesystem tool provides safe file operations within a configured workspace.
 - Write/delete permissions controlled separately via `ORIONXCORE_FILESYSTEM_ALLOW_WRITE` and `ORIONXCORE_FILESYSTEM_ALLOW_DELETE`
 
 ## Next Build Steps
+
+See [TODO.md](TODO.md) for the full development roadmap.
 
 - Session persistence and resumable conversations
 - Better sandboxing and approval workflows for terminal execution
