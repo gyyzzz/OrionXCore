@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  orionxcore:
+    build: .
+    image: orionxcore:0.2.0
+    ports:
+      - "8080:8080"
+    environment:
+      - ORIONXCORE_API_KEY=${ORIONXCORE_API_KEY}
+      - ORIONXCORE_MODEL=${ORIONXCORE_MODEL:-gpt-4.1-mini}
+      - ORIONXCORE_API_BASE_URL=${ORIONXCORE_API_BASE_URL:-https://api.openai.com/v1}
+      - ORIONXCORE_ENABLE_TERMINAL=true
+      - ORIONXCORE_ENABLE_FILESYSTEM=true
+      - ORIONXCORE_TERMINAL_WORKDIR=/workspace
+      - ORIONXCORE_FILESYSTEM_WORKDIR=/workspace
+      - ORIONXCORE_FILESYSTEM_ALLOW_WRITE=true
+      - ORIONXCORE_FILESYSTEM_ALLOW_DELETE=false
+    volumes:
+      - ./workspace:/workspace
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
