@@ -9,7 +9,7 @@
  ╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝
 ```
 
-OrionXCore is a lightweight, configurable AI coding agent service. You provide a model, API key, and API base URL, then expose a standard HTTP interface that IDE plugins, scripts, or Web UIs can call.
+OrionXCore is a lightweight, configurable AI coding agent service. Configure the model, API Key, and API Base URL to start the service, which provides standard HTTP interfaces for CLI, Web UI, or other clients.
 
 Chinese documentation: [README_zh.md](README_zh.md)
 
@@ -23,13 +23,13 @@ OrionXCore differs from tools like **OpenAI Codex**, **Claude Code**, and **GitH
 
 | Feature | OrionXCore | Claude Code / Codex | Copilot |
 |---------|------------|---------------------|---------|
-| **Deployment** | Self-hosted service | CLI/Desktop app | IDE extension |
-| **Model Flexibility** | Any OpenAI-compatible API | Locked to provider | Locked to provider |
-| **Integration** | HTTP API for any client | Direct usage only | IDE only |
-| **Database Tools** | Built-in ClickHouse + Text-to-SQL | Limited/None | None |
+| **Deployment** | **Self-hosted service** | CLI/Desktop app | IDE extension |
+| **Model Flexibility** | Any OpenAI-compatible API | Flexible configuration | Locked to provider |
+| **Integration** | **HTTP API** for any client | Direct usage only | IDE only |
+| **Database Tools** | ClickHouse only + Text-to-SQL | All databases via MCP | N/A |
 | **File System** | Configurable sandbox | Full access | IDE workspace |
-| **Customization** | Fully open source | Closed | Closed |
-| **Multi-turn Agent** | Server-side loop | Client-side | Single request |
+| **Customization** | Open source | Closed | Closed |
+| **Multi-turn Agent** | **Server-side** loop | Client-side | Single request |
 
 ### Key Advantages
 
@@ -47,7 +47,7 @@ OrionXCore differs from tools like **OpenAI Codex**, **Claude Code**, and **GitH
 
 - **You need a service, not a CLI**: Want to integrate AI coding into your web app, IDE plugin, or automation pipeline.
 - **You have your own LLM**: Using self-hosted models or alternative providers.
-- **You need database querying**: Natural language queries against ClickHouse or similar data warehouses.
+- **You need a simple ClickHouse-MCP tool**: Natural language queries against ClickHouse or similar data warehouses (although ClickHouse officially provides an MCP server, I find this tool more convenient for my personal needs).
 - **You want control**: Customize security policies, tools, and behavior for your environment.
 
 ## Goals
@@ -58,7 +58,11 @@ OrionXCore differs from tools like **OpenAI Codex**, **Claude Code**, and **GitH
 - OpenAI-compatible model integration with pluggable tools
 - REST and SSE endpoints for client integration
 
-## Initial Scope
+Starting from practical needs, continuously improving server-side functionality.
+
+Also building some simple and useful client tools.
+
+## Current Features
 
 This initial scaffold includes:
 
@@ -254,10 +258,7 @@ The filesystem tool provides safe file operations within a configured workspace.
 
 ## Next Build Steps
 
-See [TODO.md](TODO.md) for the full development roadmap.
-
-- Session persistence and resumable conversations
+- Web-based demo
 - Better sandboxing and approval workflows for terminal execution
 - Native streaming from model providers
-- Structured tool plugin loading from external packages
 - Auth, rate limiting, and audit logs
