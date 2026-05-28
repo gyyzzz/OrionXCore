@@ -6,6 +6,24 @@ from uuid import uuid4
 
 import httpx
 
+# ASCII art logo
+LOGO = """
+    ___        __  ____  ____
+   / _ \\ ___  /  || __ ||  _ \\  ___  _ _
+  ( (_) )___)( (_|| __ || |_| )/___)( U )
+   \\___/      \\__||___ ||____/      \\___/
+                     (_)
+"""
+
+VERSION = "0.2.0"
+
+
+def print_banner() -> None:
+    """Print the OrionX logo and version."""
+    print(LOGO)
+    print(f"  OrionXCore CLI v{VERSION}")
+    print("")
+
 # Configure readline for proper backspace/delete handling
 # macOS uses libedit which requires different syntax than GNU readline
 try:
@@ -104,8 +122,9 @@ def run_ask(args: argparse.Namespace) -> int:
 
 
 def run_chat(args: argparse.Namespace) -> int:
+    print_banner()
     session_id = args.session_id or f"chat-{uuid4().hex[:8]}"
-    print(f"OrionX chat session: {session_id}")
+    print(f"Session: {session_id}")
     print("Type 'exit' or 'quit' to stop.")
     print("")
 
