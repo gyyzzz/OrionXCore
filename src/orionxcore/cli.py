@@ -70,6 +70,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Alias for --raw.",
     )
+    ask_parser.add_argument(
+        "--no-events",
+        action="store_true",
+        help="Hide Events output, show only the final response.",
+    )
 
     chat_parser = subparsers.add_parser("chat", help="Start an interactive chat session.")
     chat_parser.add_argument("--session-id", help="Optional session ID. Generated automatically if omitted.")
@@ -77,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--raw",
         action="store_true",
         help="Print raw JSON responses for each turn.",
+    )
+    chat_parser.add_argument(
+        "--no-events",
+        action="store_true",
+        help="Hide Events output, show only the final response.",
     )
 
     return parser
@@ -118,7 +128,7 @@ def run_ask(args: argparse.Namespace) -> int:
         print(json.dumps(response, ensure_ascii=False, indent=2))
         return 0
 
-    render_agent_response(response)
+    render_agent_response(response, show_events=not args.no_events)
     return 0
 
 
@@ -128,6 +138,7 @@ def run_chat(args: argparse.Namespace) -> int:
     print(f"Session: {session_id}")
     print("Type 'exit' or 'quit' to stop.")
     print("")
+    show_events = not args.no_events
 
     while True:
         try:
@@ -157,7 +168,7 @@ def run_chat(args: argparse.Namespace) -> int:
         if args.raw:
             print(json.dumps(response, ensure_ascii=False, indent=2))
         else:
-            render_agent_response(response, assistant_label="assistant>")
+            render_agent_response(response, assistant_label="assistant>", show_events=show_events)
 
 
 def post_json(base_url: str, path: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
@@ -175,10 +186,13 @@ def post_json(base_url: str, path: str, payload: dict[str, Any], timeout: float)
         raise SystemExit(1) from exc
 
 
-def render_agent_response(response: dict[str, Any], assistant_label: str = "Assistant") -> None:
+def render_agent_response(response: dict[str, Any], assistant_label: str = "Assistant", show_events: bool = True) -> None:
     print(assistant_label)
     print(response.get("message", {}).get("content", ""))
     print("")
+
+    if not show_events:
+        return
 
     events = response.get("events") or []
     if not events:
