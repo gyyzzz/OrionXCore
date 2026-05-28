@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+from datetime import datetime, date
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Callable
 
@@ -11,6 +12,21 @@ from orionxcore.schemas import ChatCompletionChunk, ChatCompletionChunkChoice, C
 from orionxcore.schemas import ChatCompletionMessage, ChatCompletionRequest, ChatCompletionResponse
 from orionxcore.schemas import ChatCompletionChoice, ChatCompletionUsage, ChatMessage
 from orionxcore.tools.registry import ToolRegistry
+
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles datetime and date objects."""
+    def default(self, obj: Any) -> Any:
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if isinstance(obj, date):
+            return obj.isoformat()
+        return super().default(obj)
+
+
+def safe_json_dumps(obj: Any, **kwargs: Any) -> str:
+    """JSON dumps that handles datetime objects."""
+    return json.dumps(obj, cls=DateTimeEncoder, **kwargs)
 
 
 @dataclass
@@ -262,7 +278,7 @@ class AgentService:
                             "role": "tool",
                             "tool_call_id": call.id,
                             "name": call.name,
-                            "content": json.dumps(result, ensure_ascii=True),
+                            "content": safe_json_dumps(result, ensure_ascii=True),
                         }
                     )
                 continue
