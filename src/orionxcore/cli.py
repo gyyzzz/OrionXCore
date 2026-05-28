@@ -192,6 +192,9 @@ def render_agent_response(response: dict[str, Any], assistant_label: str = "Assi
 
 
 def format_event(event_type: str, payload: dict[str, Any]) -> str:
+    if event_type == "assistant":
+        # Skip assistant event as it's already printed via message.content
+        return ""
     if event_type == "iteration":
         return f"- iteration #{payload.get('iteration')}"
     if event_type == "tool_call":
