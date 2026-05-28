@@ -74,6 +74,9 @@ Optional tool settings:
 - `ORIONXCORE_ENABLE_DATABASE`
 - `ORIONXCORE_DATABASE_URL`
 - `ORIONXCORE_ALLOW_RISKY_COMMANDS`
+- `ORIONXCORE_ENABLE_FILESYSTEM`
+- `ORIONXCORE_FILESYSTEM_ALLOW_WRITE`
+- `ORIONXCORE_FILESYSTEM_ALLOW_DELETE`
 
 ## API
 
@@ -191,11 +194,20 @@ The database tool currently supports ClickHouse only.
 
 By default, mutation statements are blocked. Enable `ORIONXCORE_DATABASE_ALLOW_MUTATION=true` only when that is explicitly desired.
 
+## Filesystem Notes
+
+The filesystem tool provides safe file operations within a configured workspace.
+
+- Enable with `ORIONXCORE_ENABLE_FILESYSTEM=true`
+- Operations: `read_file`, `write_file`, `append_file`, `list_dir`, `make_dir`, `delete_file`, `move`, `stat`, `search`
+- Path traversal protection: only allows operations within `ORIONXCORE_FILESYSTEM_WORKDIR` (defaults to `ORIONXCORE_TERMINAL_WORKDIR`)
+- Read/write size limits: `ORIONXCORE_FILESYSTEM_MAX_READ_BYTES` and `ORIONXCORE_FILESYSTEM_MAX_WRITE_BYTES` (default 1 MiB)
+- Write/delete permissions controlled separately via `ORIONXCORE_FILESYSTEM_ALLOW_WRITE` and `ORIONXCORE_FILESYSTEM_ALLOW_DELETE`
+
 ## Next Build Steps
 
 - Session persistence and resumable conversations
 - Better sandboxing and approval workflows for terminal execution
 - Native streaming from model providers
-- Richer file-system tools
 - Structured tool plugin loading from external packages
 - Auth, rate limiting, and audit logs

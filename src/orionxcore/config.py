@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     database_allow_mutation: bool = False
     database_allowed_databases: str = ""
 
+    enable_filesystem: bool = False
+    filesystem_workdir: Path | None = None
+    filesystem_allow_write: bool = True
+    filesystem_allow_delete: bool = False
+    filesystem_max_read_bytes: int = 1_048_576
+    filesystem_max_write_bytes: int = 1_048_576
+    filesystem_max_list_entries: int = 500
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

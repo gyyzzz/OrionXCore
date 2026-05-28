@@ -4,6 +4,7 @@ from orionxcore.config import Settings
 from orionxcore.schemas import ToolDescriptor
 from orionxcore.tools.base import Tool
 from orionxcore.tools.database import DatabaseTool
+from orionxcore.tools.filesystem import FileSystemTool
 from orionxcore.tools.terminal import TerminalTool
 
 
@@ -59,4 +60,6 @@ def build_registry(settings: Settings) -> ToolRegistry:
         tools.append(TerminalTool(settings))
     if settings.enable_database:
         tools.append(DatabaseTool(settings))
+    if settings.enable_filesystem:
+        tools.append(FileSystemTool(settings))
     return ToolRegistry(tools)

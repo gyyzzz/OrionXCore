@@ -6,6 +6,21 @@ from uuid import uuid4
 
 import httpx
 
+# Configure readline for proper backspace/delete handling
+# macOS uses libedit which requires different syntax than GNU readline
+try:
+    import readline
+    if "libedit" in (readline.__doc__ or ""):
+        # macOS libedit bindings
+        readline.parse_and_bind("bind ^? ed-delete-prev-char")  # Backspace
+        readline.parse_and_bind("bind ^H ed-delete-prev-char")  # Ctrl-H
+        readline.parse_and_bind("bind ^[[3~ ed-delete-next-char")  # Delete key
+    else:
+        # GNU readline bindings
+        readline.parse_and_bind("set enable-keypad on")
+except ImportError:
+    pass  # readline not available on some platforms
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="orionx", description="OrionXCore command line client.")
