@@ -50,6 +50,77 @@ OrionXCore differs from tools like **OpenAI Codex**, **Claude Code**, and **GitH
 - **You need a simple ClickHouse-MCP tool**: Natural language queries against ClickHouse or similar data warehouses (although ClickHouse officially provides an MCP server, I find this tool more convenient for my personal needs).
 - **You want control**: Customize security policies, tools, and behavior for your environment.
 
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENTS                                         │
+│     ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐        │
+│     │   CLI    │     │  Web UI  │     │IDE Plugin│     │  Script  │        │
+│     │  orionx  │     │          │     │          │     │          │        │
+│     └───┬──────┘     └───┬──────┘     └───┬──────┘     └───┬──────┘        │
+└─────────┼─────────────────┼─────────────────┼─────────────────┼─────────────┘
+          │                 │                 │                 │
+          └─────────────────┴────────┬────────┴─────────────────┘
+                                     │ HTTP (REST / SSE)
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         OrionXCore SERVICE                                   │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                        API Layer (FastAPI)                             │ │
+│  │   /health    /v1/tools    /v1/agent/respond    /v1/agent/stream        │ │
+│  │                               /v1/chat/completions                     │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                     │                                        │
+│                                     ▼                                        │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │                     Agent Service (Server-side Loop)                   │ │
+│  │                                                                        │ │
+│  │     ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐          │ │
+│  │     │ Request │───▶│   LLM   │───▶│  Tools  │───▶│ Response│          │ │
+│  │     │         │    │  Call   │    │ Execute │    │         │          │ │
+│  │     └─────────┘    └─────────┘    └─────────┘    └─────────┘          │ │
+│  │          │             │             │            ▲                   │ │
+│  │          │             │             └────────────┘                   │ │
+│  │          │             ▼             (loop until done)                 │ │
+│  │          │      ┌───────────┐                                           │ │
+│  │          └─────▶│  Continue │──────────────────────────▶               │ │
+│  │                 │  if tools │                           │               │ │
+│  │                 └───────────┘                           │               │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                     │                                        │
+│          ┌──────────────────────────┼──────────────────────────┐           │
+│          ▼                          ▼                          ▼           │
+│  ┌───────────────┐          ┌───────────────┐          ┌───────────────┐   │
+│  │ Terminal Tool │          │ Database Tool │          │Filesystem Tool│   │
+│  │               │          │               │          │               │   │
+│  │ • Shell exec  │          │ • ClickHouse  │          │ • Read/Write  │   │
+│  │ • Risk check  │          │ • Text-to-SQL │          │ • List/Search │   │
+│  │ • Path limit  │          │ • Schema scan │          │ • Path sandbox│   │
+│  └───────────────┘          └───────────────┘          └───────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           EXTERNAL SERVICES                                  │
+│     ┌─────────────────┐           ┌─────────────────┐                       │
+│     │    LLM API      │           │   ClickHouse    │                       │
+│     │ (OpenAI/DeepSeek│           │    Database     │                       │
+│     │   /Ollama/...)  │           │                 │                       │
+│     └─────────────────┘           └─────────────────┘                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Features:**
+- 🔁 **Server-side Agent Loop**: Multi-turn tool execution handled entirely by the service
+- 🔌 **API-First**: REST/SSE endpoints for any client integration
+- 🛠️ **Pluggable Tools**: Terminal, Database, Filesystem with sandbox controls
+- 🧠 **Model Agnostic**: Works with any OpenAI-compatible LLM
+
+---
+
 ## Goals
 
 - Terminal execution via tool calling
